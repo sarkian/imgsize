@@ -3,9 +3,11 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <gd.h>
 
 #include <strlist.h>
+#include <intlist.h>
 
 
 #define T_UNKNOWN   -1
@@ -20,16 +22,40 @@
 
 
 
-static char * executable;
-static strlist ** extensions;
-static char err;
+char * executable;
+strlist ** extensions;
 
+char f_nonl = 0;
+char f_onlysize = 0;
+char f_noerr = 0;
+char f_sb = 0;
+char f_sa = 0;
+int f_padding = 0;
+
+char err = 0;
+
+int opterr = 0;
+int optind = 0;
 
 
 int usage(void)
 {
-    fprintf(stderr, "Usage: %s filename [...]\n", executable);
+    fprintf(stderr, "Usage: %s [OPTION] filename [...]\n", executable);
     return EXIT_FAILURE;
+}
+
+
+void help(void)
+{
+    printf( "Usage: %s [OPTION] filename [...]\n\n"
+            "Options:\n"
+            "    -o  Print only size, without filename\n"
+            "    -n  Not print newlines\n"
+            "    -s  Not display errors\n"
+            "    -b  Space before\n"
+            "    -a  Space after\n"
+            "    -h  Display this help and exit\n",
+            executable);
 }
 
 
@@ -79,7 +105,38 @@ int get_img_type(const char * fname)
 }
 
 
-void show_img_size(const char * fname, unsigned int padding)
+void print_img_err(const char * msg, const char * fname)
+{
+    if(f_noerr)
+        return;
+    if(f_sb)
+        printf(" ");
+    if(f_onlysize)
+        printf("%s: %s", msg, fname);
+    else
+        printf("%-*s: %s", f_padding, fname, msg);
+    if(f_sa)
+        printf(" ");
+    if(!f_nonl)
+        printf("\n");
+}
+
+
+void print_img_size(const char * fname, int w, int h)
+{
+    if(f_sb)
+        printf(" ");
+    if(!f_onlysize)
+        printf("%-*s: ", f_padding, fname);
+    printf("%dx%d", w, h);
+    if(f_sa)
+        printf(" ");
+    if(!f_nonl)
+        printf("\n");
+}
+
+
+void show_img_size(const char * fname)
 {
     FILE * fp;
     int type;
@@ -88,22 +145,23 @@ void show_img_size(const char * fname, unsigned int padding)
     int ret;
 
     if((ret = stat(fname, &fstat)) != 0) {
-        fprintf(stderr, "%-*s: Cannot open file\n", padding, fname);
+        /* fprintf(stderr, "%-*s: Cannot open file\n", padding, fname); */
+        print_img_err("Cannot open file", fname);
         return;
     }
     if(S_ISDIR(fstat.st_mode)) {
-        fprintf(stderr, "%-*s: Is a directory\n", padding, fname);
+        print_img_err("Is a directory", fname);
         return;
     }
 
     type = get_img_type(fname);
     if(type == T_UNKNOWN) {
-        fprintf(stderr, "%-*s: Unknown type\n", padding, fname);
+        print_img_err("Unknown type", fname);
         return;
     }
 
     if((fp = fopen(fname, "rb")) == NULL) {
-        fprintf(stderr, "%-*s: Cannot open file\n", padding, fname);
+        print_img_err("Cannot open file", fname);
         return;
     }
 
@@ -136,9 +194,9 @@ void show_img_size(const char * fname, unsigned int padding)
     fclose(fp);
 
     if(img == NULL || err)
-        fprintf(stderr, "%-*s: wrong file\n", padding, fname);
+        print_img_err("Wrong file", fname);
     else
-        printf("%-*s: %dx%d\n", padding, fname, gdImageSX(img), gdImageSY(img));
+        print_img_size(fname, gdImageSX(img), gdImageSY(img));
 
     if(img != NULL)
         gdImageDestroy(img);
@@ -151,11 +209,15 @@ void gd_errmethod(int n, const char * msg, va_list args)
 }
 
 
-int main(int argc, const char * argv[])
+int main(int argc, char * argv[])
 {
-    unsigned int i,
-                 len,
-                 padding;
+    int i,
+        len,
+        opt,
+        cnt;
+
+    intlist * opts = intlist_init();
+    strlist * files = strlist_init();
 
     executable = (char *) malloc(strlen(argv[0]));
     strcpy(executable, argv[0]);
@@ -163,26 +225,61 @@ int main(int argc, const char * argv[])
     if(argc < 2)
         return usage();
 
-    init_extensions();
+    while((opt = getopt(argc, argv, "onsbah")) != -1) {
+        switch(opt) {
+            case 'o':
+                f_onlysize = 1;
+                break;
+            case 'n':
+                f_nonl = 1;
+                break;
+            case 's':
+                f_noerr = 1;
+                break;
+            case 'b':
+                f_sb = 1;
+                break;
+            case 'a':
+                f_sa = 1;
+                break;
+            case 'h':
+                help();
+                return EXIT_SUCCESS;
+            default:
+                fprintf(stderr, "Invalid option: %s\n", argv[optind - 1]);
+                return EXIT_FAILURE;
+        }
+        intlist_push(opts, optind - 1);
+    }
 
     i = 1;
     while(i < argc) {
-        len = strlen(argv[i++]);
-        if(len > padding)
-            padding = len;
+        if(intlist_search(opts, i) == NULL) {
+            len = strlen(argv[i]);
+            if(len > f_padding)
+                f_padding = len;
+            strlist_push(files, argv[i]);
+        }
+        i++;
     }
 
+    if(!files->size)
+        return usage();
+
+    init_extensions();
     gdSetErrorMethod(gd_errmethod);
 
-    i = 1;
-    while(i < argc)
-        show_img_size(argv[i++], padding);
+    i = 0;
+    while(i < files->size)
+        show_img_size(strlist_get(files, i++));
 
     free(executable);
     i = 0;
     while(i < sizeof(extensions))
         strlist_free(&extensions[i++]);
     free(extensions);
+    strlist_free(&files);
+    intlist_free(&opts);
 
     return err ? EXIT_FAILURE : EXIT_SUCCESS;
 }

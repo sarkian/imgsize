@@ -1,5 +1,6 @@
 #include <strlist.h>
 
+
 strlist * strlist_init()
 {
     return strlist_init_size(8);
@@ -19,7 +20,6 @@ strlist * strlist_init_size(size_t size)
 strlist * strlist_init_args(size_t n, ...)
 {
     va_list ap;
-    char * tmp;
     size_t i = 0;
     strlist * lst = strlist_init_size(n);
     va_start(ap, n);

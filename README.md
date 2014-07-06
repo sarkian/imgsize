@@ -4,12 +4,21 @@ imgsize - Simple tool that prints the image(s) size using [LibGD](http://libgd.b
 Usage
 -----
 ```
-$ imgsize ~/path/to/image.png
+$ imgsize [OPTION] ~/path/to/image.png
     or
-$ imgsize img1.png img2.jpg # etc.
+$ imgsize [OPTION] img1.png img2.jpg # etc.
     or
-$ imgsize /path/to/directory/with/images/*
+$ imgsize [OPTION] /path/to/directory/with/images/*
 ```
+
+Options
+-------
+**-o** - Print only size, without filename
+**-n** - Not print newlines
+**-s** - Not display errors
+**-b** - Space before
+**-a** - Space after
+**-h** - Display help and exit
 
 Installing
 ----------
