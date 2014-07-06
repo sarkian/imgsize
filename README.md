@@ -13,12 +13,12 @@ $ imgsize [OPTION] /path/to/directory/with/images/*
 
 Options
 -------
-**-o** - Print only size, without filename
-**-n** - Not print newlines
-**-s** - Not display errors
-**-b** - Space before
-**-a** - Space after
-**-h** - Display help and exit
+* **-o** - Print only size, without filename
+* **-n** - Not print newlines
+* **-s** - Not display errors
+* **-b** - Space before
+* **-a** - Space after
+* **-h** - Display help and exit
 
 Installing
 ----------
