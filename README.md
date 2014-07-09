@@ -29,7 +29,7 @@ $ make
 $ sudo make install
 ```
 
-Dependensies
+Dependencies
 ------------
 * LibGD (On Ubuntu just install ```libgd-dev```)
 
@@ -42,4 +42,3 @@ $ sudo make uninstall
 License
 -------
 [MIT License](http://opensource.org/licenses/mit-license.php)
-
